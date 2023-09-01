@@ -88,8 +88,98 @@ class Loss_CategoricalCrossentropy(Loss):
             self.dinputs = self.dinputs / samples
 
 
-            # Softmax classifier - combined Softmax activation
-            # and cross-entropy loss for faster backward step
+# Softmax classifier - combined Softmax activation
+# and cross-entropy loss for faster backward step
+
+class Activation_Softmax_Loss_CategoricalCrossentropy():
+    # Backward pass
+    def backward(self,dvalues, y_true):
+        # Number of samples
+        samples = len(dvalues)
+        # If labels are one-hot encoded,
+        # turn them into discrete values
+        if len(y_true.shape) == 2:
+            y_true = np.argmax(y_true, axis=1)
+        # Copy so we can safely modify
+        self.dinputs = dvalues.copy()
+        # Calculate gradient
+        self.dinputs[range(samples), y_true] -= 1
+        # Normalize gradient
+        self.dinputs = self.dinputs / samples
+
+# Binary cross-entropy loss
+class Loss_BinaryCrossentropy(Loss):
+    # Forward pass
+    def forward(self, y_pred, y_true):
+        # Clip data to prevent division by 0
+        # # Clip both sides to not drag mean towards any value
+        y_pred_clipped = np.clip(y_pred, 1e-7, 1 - 1e-7)
+        # Calculate sample-wise loss
+        sample_losses = -(y_true * np.log(y_pred_clipped) +
+                          (1 - y_true) * np.log(1 - y_pred_clipped))
+        sample_losses = np.mean(sample_losses, axis=-1)
+        # Return losses
+        return sample_losses
+    # Backward pass
+    def backward(self,dvalues, y_true):
+        # Number of samples
+        samples = len(dvalues)
+        # Number of outputs in every sample
+        # # We'll use the first sample to count them
+        outputs = len(dvalues[0])
+        # Clip data to prevent division by 0
+        # Clip both sides to not drag mean towards any value
+        clipped_dvalues = np.clip(dvalues, 1e-7, 1 - 1e-7)
+        # Calculate gradient
+        self.dinputs = -(y_true / clipped_dvalues -(1 - y_true) / (1 - clipped_dvalues)) / outputs
+        # Normalize gradient
+        self.dinputs = self.dinputs / samples
+
+# Mean Squared Error loss
+
+class Loss_MeanSquaredError(Loss):# L2 loss
+    # Forward pass
+    def forward(self, y_pred, y_true):
+        # Calculate loss
+        sample_losses = np.mean((y_true - y_pred)**2, axis=-1)
+        # Return losses
+        return sample_losses
+    # Backward pass
+    def backward(self,dvalues, y_true):
+        # Number of samples
+        samples = len(dvalues)
+        # Number of outputs in every sample
+        # We'll use the first sample to count them
+        outputs = len(dvalues[0])
+        # Gradient on values
+        self.dinputs = -2 * (y_true - dvalues) / outputs
+        # Normalize gradient
+        self.dinputs = self.dinputs / samples
+
+# Mean Absolute Error loss
+
+class Loss_MeanAbsoluteError(Loss):# L1 loss
+    def forward(self, y_pred, y_true):
+        # Calculate loss
+        sample_losses = np.mean(np.abs(y_true - y_pred), axis=-1)
+        # Return losses
+        return sample_losses
+    # Backward pass
+    def backward(self,dvalues, y_true):
+        # Number of samples
+        samples = len(dvalues)
+        # Number of outputs in every sample
+        # We'll use the first sample to count them
+        outputs = len(dvalues[0])
+        # Calculate gradient
+        self.dinputs = np.sign(y_true - dvalues) / outputs
+        # Normalize gradient
+        self.dinputs = self.dinputs / samples
+
+
+# Common accuracy class
+
+
 '''
 # Create dataset
 X, y = spiral_data(samples=100, classes=3)
